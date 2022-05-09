@@ -23,27 +23,9 @@ public class Logbook {
     public init(location: FilePath) throws {
         self.location = location
         do {
-            // Open the file
-            let file = try FileDescriptor.open(location, .readOnly)
-            do {
-                // Read the capacity
-                let capacityBytes = UnsafeMutableRawBufferPointer.allocate(byteCount: 8, alignment: 1)
-                let capacityBytesRead = try file.read(into: capacityBytes)
-                guard capacityBytesRead == 8 else { throw Errno.ioError }
-                self.capacity = capacityBytes.load(as: Int.self)
-                // Read the count
-                let countBytes = UnsafeMutableRawBufferPointer.allocate(byteCount: 8, alignment: 1)
-                let countBytesRead = try file.read(into: countBytes)
-                guard countBytesRead == 8 else { throw Errno.ioError }
-                self.count = countBytes.load(as: Int.self)
-                // Close the file for now
-                try file.close()
-            } catch {
-                // Close the file
-                try file.close()
-                // Rethrow the error
-                throw error
-            }
+            let (capacity, count) = try Logbook.readExistingMetadata(at: location)
+            self.capacity = capacity
+            self.count = count
         } catch Errno.noSuchFileOrDirectory {
             // Create an empty logbook file.
             try Logbook.createEmptyFile(at: location)
@@ -75,6 +57,25 @@ extension Logbook {
                 let capacityBytesWritten = try file.write(toAbsoluteOffset: 0, capacityBytes)
                 guard capacityBytesWritten == 8 else { throw Errno.ioError }
             }
+        }
+    }
+    
+    /// Reads the existing capacity and count metadata at the provided location.
+    static func readExistingMetadata(at location: FilePath) throws -> (capacity: Int, count: Int) {
+        let file = try FileDescriptor.open(location, .readOnly)
+        return try file.closeAfter {
+            // Read the capacity
+            let capacityBytes = UnsafeMutableRawBufferPointer.allocate(byteCount: 8, alignment: 1)
+            let capacityBytesRead = try file.read(into: capacityBytes)
+            guard capacityBytesRead == 8 else { throw Errno.ioError }
+            let capacity = capacityBytes.load(as: Int.self)
+            // Read the count
+            let countBytes = UnsafeMutableRawBufferPointer.allocate(byteCount: 8, alignment: 1)
+            let countBytesRead = try file.read(into: countBytes)
+            guard countBytesRead == 8 else { throw Errno.ioError }
+            let count = countBytes.load(as: Int.self)
+            // Return the read data
+            return (capacity, count)
         }
     }
 }
