@@ -13,9 +13,43 @@ public class Logbook {
     /// The path to the logbook file.
     public let location: FilePath
     
+    /// The current capacity of the event table.
+    public var capacity: Int
+    
+    /// The current number of events in the logbook file.
+    public var count: Int
+    
     /// Initializes a logbook by opening the provided logbook file.
-    public init(location: FilePath) {
+    public init(location: FilePath) throws {
         self.location = location
+        do {
+            // Open the file
+            let file = try FileDescriptor.open(location, .readOnly)
+            do {
+                // Read the capacity
+                let capacityBytes = UnsafeMutableRawBufferPointer.allocate(byteCount: 8, alignment: 1)
+                let capacityBytesRead = try file.read(into: capacityBytes)
+                guard capacityBytesRead == 8 else { throw Errno.ioError }
+                self.capacity = capacityBytes.load(as: Int.self)
+                // Read the count
+                let countBytes = UnsafeMutableRawBufferPointer.allocate(byteCount: 8, alignment: 1)
+                let countBytesRead = try file.read(into: countBytes)
+                guard countBytesRead == 8 else { throw Errno.ioError }
+                self.count = countBytes.load(as: Int.self)
+                // Close the file for now
+                try file.close()
+            } catch {
+                // Close the file
+                try file.close()
+                // Rethrow the error
+                throw error
+            }
+        } catch Errno.noSuchFileOrDirectory {
+            // Create an empty logbook file.
+            try Logbook.createEmptyFile(at: location)
+            self.capacity = 256
+            self.count = 16 + 256 * 8
+        }
     }
 }
 
