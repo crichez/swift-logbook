@@ -11,7 +11,10 @@ import OrderedCollections
 /// A flight, simulator or ground event.
 ///
 /// Events are defined by their `date`, `equipment` and zero or more optional fields.
-public struct Event {
+public struct Event: Codable, Hashable, Identifiable {
+    /// A unique identifier.
+    public let id: UUID
+    
     /// The date this event took place.
     public let date: Date
     
@@ -28,13 +31,15 @@ public struct Event {
     public let endorsement: Endorsement?
     
     /// Initializes a new event.
-    init(
+    public init(
+        id: UUID = UUID(),
         date: Date = Date(),
         equipment: Equipment? = nil,
         experience: OrderedDictionary<String, Experience> = [:],
         comments: String = "",
         endorsement: Endorsement? = nil
     ) {
+        self.id = id
         self.date = date
         self.equipment = equipment
         self.experience = experience

@@ -6,7 +6,7 @@
 //
 
 /// Experience acquired during an event.
-public enum Experience {
+public enum Experience: Hashable, Codable {
     case text(String)
     case count(Int)
     case time(Double)

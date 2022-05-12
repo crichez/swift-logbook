@@ -8,7 +8,7 @@
 import Foundation
 
 /// An endorsement attached to an event to prevent it from farther modification.
-public struct Endorsement {
+public struct Endorsement: Hashable, Codable {
     /// The endorser's unique identifier.
     public let endorser: String
     

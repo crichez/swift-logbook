@@ -8,7 +8,7 @@
 import OrderedCollections
 
 /// An aircraft or simulator in which an event is performed.
-public struct Equipment {
+public struct Equipment: Hashable, Codable {
     /// The unique identifier for this equipment.
     public let id: String
     
