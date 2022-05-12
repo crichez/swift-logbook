@@ -119,4 +119,18 @@ final class LogbookTests: XCTestCase {
         let retrievedEvent = await logbook.event(withID: event.id)
         XCTAssertNil(retrievedEvent)
     }
+    
+    /// Asserts requesting events within an interval returns the expected events.
+    func testDateSearch() async throws {
+        let events = [
+            Event(date: Date(timeIntervalSince1970: 0)),
+            Event(date: Date(timeIntervalSince1970: 1)),
+            Event(date: Date(timeIntervalSince1970: 2)),
+            Event(date: Date(timeIntervalSince1970: 3)),
+        ]
+        let logbook = Logbook(location: FilePath("/dev/null"), events: events)
+        let searchInterval = DateInterval(start: Date(timeIntervalSince1970: 0), duration: 2)
+        let retrievedEvents = try await logbook.events(intersecting: searchInterval)
+        XCTAssertEqual(Array(events[0...2]), retrievedEvents)
+    }
 }
