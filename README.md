@@ -1,3 +1,3 @@
 # Logbook
 
-A description of this package.
+A Swift package for pilot record keeping.
