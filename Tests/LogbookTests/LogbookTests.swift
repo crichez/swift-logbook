@@ -12,11 +12,11 @@ import Foundation
 import SystemPackage
 
 /// A test suite for each method in the `Logbook` class.
-@available(macOS 11, tvOS 14, iOS 14, watchOS 8, *)
 final class LogbookTests: XCTestCase {
     
     // MARK: File Management
     
+    #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
     /// The URL to the test file.
     var testFileURL: URL {
         /// The test file location for this platform.
@@ -29,18 +29,33 @@ final class LogbookTests: XCTestCase {
         .appendingPathComponent("test")
         .appendingPathExtension("logbook")
     }
+    #endif
     
     /// The path to the test file.
     var testFilePath: FilePath {
+        #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
         FilePath(testFileURL.path)
+        #else
+        FilePath("/tmp/testLogbook.json")
+        #endif
     }
     
     /// Removes all test data to avoid test contamination
     override func setUpWithError() throws {
         do {
+            #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
             // Remove any existing test files
             try FileManager.default.removeItem(at: testFileURL)
+            #else
+            let file = try FileDescriptor.open(
+                testFilePath, .readWrite,
+                options: [.create, .truncate],
+                permissions: .ownerReadWriteExecute)
+            try file.close()
+            #endif
         } catch CocoaError.fileNoSuchFile {
+            // Do nothing
+        } catch Errno.noSuchFileOrDirectory {
             // Do nothing
         }
     }
@@ -92,7 +107,20 @@ final class LogbookTests: XCTestCase {
     func testInitializationWithFile() async throws {
         let testEvent = Event()
         let events = [testEvent]
-        try JSONEncoder().encode(events).write(to: testFileURL)
+        let encodedEvents = try JSONEncoder().encode(events)
+        try encodedEvents.withUnsafeBytes { bytesToWrite in
+            let file = try FileDescriptor.open(
+                testFilePath, .writeOnly,
+                options: [.create],
+                permissions: .ownerReadWriteExecute)
+            try file.closeAfter {
+                let bytesWritten = try file.write(bytesToWrite)
+                guard bytesWritten == bytesToWrite.count else {
+                    XCTFail("didn't write the whole file!")
+                    return
+                }
+            }
+        }
         let logbook = try Logbook(location: testFilePath)
         let containsEvent = try await logbook.contains(testEvent)
         XCTAssertTrue(containsEvent)
