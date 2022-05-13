@@ -51,7 +51,12 @@ final class LogbookTests: XCTestCase {
                 testFilePath, .readWrite,
                 options: [.create, .truncate],
                 permissions: .ownerReadWriteExecute)
-            try file.close()
+            try file.closeAfter {
+                guard try file.writeAll("{}".utf8) == 2 else {
+                    XCTFail("coudn't write empty file")
+                    return
+                }
+            }
             #endif
         } catch CocoaError.fileNoSuchFile {
             // Do nothing
