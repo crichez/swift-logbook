@@ -111,7 +111,7 @@ final class LogbookTests: XCTestCase {
         try encodedEvents.withUnsafeBytes { bytesToWrite in
             let file = try FileDescriptor.open(
                 testFilePath, .writeOnly,
-                options: [.create],
+                options: [.create, .truncate],
                 permissions: .ownerReadWriteExecute)
             try file.closeAfter {
                 let bytesWritten = try file.write(bytesToWrite)
@@ -131,7 +131,7 @@ final class LogbookTests: XCTestCase {
     /// Asserts events inserted using `insert(event:)` are reflected in the `events` dictionary.
     func testUpdateEvent() async throws {
         let event = Event()
-        let logbook = try Logbook(location: testFilePath)
+        let logbook = Logbook(location: testFilePath, events: [])
         let updatedEvent = await logbook.update(event: event)
         XCTAssertNil(updatedEvent)
         let retrievedEvent = await logbook.event(withID: event.id)
