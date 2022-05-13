@@ -1,0 +1,29 @@
+name: Test
+on:
+  branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test-ubuntu:
+    runs-on: ubuntu-latest
+    steps: 
+      - uses: actions/checkout@v2
+      - name: Test
+        run: swift test
+
+  test-apple-platforms:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Test macOS
+        run: swift test
+      - name: Test iOS
+        run: xcodebuild test -scheme Logbook -destination "platform=iOS 
+Simulator,name=iPhone 12,OS=15.2"
+      - name: Test tvOS
+        run: xcodebuild test -scheme Logbook -destination "platform=tvOS 
+Simulator,name=Apple TV 4K,OS=15.2"
+      - name: Test watchOS
+        run: xcodebuild test -scheme Logbook -destination 
+"platform=watchOS Simulator,name=Apple Watch Series 6 - 44mm,OS=8.3"
+
