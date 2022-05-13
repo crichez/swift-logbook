@@ -52,7 +52,7 @@ final class LogbookTests: XCTestCase {
                 options: [.create, .truncate],
                 permissions: .ownerReadWriteExecute)
             try file.closeAfter {
-                guard try file.writeAll("{}".utf8) == 2 else {
+                guard try file.writeAll("{[]}".utf8) == 4 else {
                     XCTFail("coudn't write empty file")
                     return
                 }
