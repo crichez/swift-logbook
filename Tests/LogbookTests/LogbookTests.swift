@@ -186,7 +186,9 @@ final class LogbookTests: XCTestCase {
         ]
         let logbook = Logbook(location: FilePath("/dev/null"), events: events)
         let searchInterval = DateInterval(start: Date(timeIntervalSince1970: 0), duration: 2)
-        let retrievedEvents = try await logbook.events(intersecting: searchInterval)
+        let retrievedEvents = try await logbook.events(
+            onOrAfter: searchInterval.start,
+            onOfBefore: searchInterval.end)
         XCTAssertEqual(Array(events[0...2]), retrievedEvents)
     }
 }
