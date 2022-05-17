@@ -31,6 +31,7 @@ public actor Logbook {
         let (eventsByID, eventIDsByDate) = Logbook.index(events: events)
         self.eventsByID = eventsByID
         self.eventIDsByDate = eventIDsByDate
+        print("initialized a logbook with \(eventsByID.count) events")
     }
 }
 

@@ -11,6 +11,14 @@ import XCTest
 import Foundation
 import SystemPackage
 
+#if os(Linux)
+import Glibc
+#elseif os(Windows)
+import ucrt
+#elseif os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
+import Darwin
+#endif
+
 /// A test suite for each method in the `Logbook` class.
 final class LogbookTests: XCTestCase {
     
@@ -32,38 +40,54 @@ final class LogbookTests: XCTestCase {
     #endif
     
     /// The path to the test file.
-    var testFilePath: FilePath {
+    lazy var testFilePath: FilePath = {
         #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
         FilePath(testFileURL.path)
-        #else
+        #elseif os(Linux)
         FilePath("/tmp/testLogbook.json")
+        #elseif os(Windows)
+        let tempFileNameBuffer = UnsafeMutablePointer<CInterop.PlatformChar>.allocate(capacity: 12)
+        guard _mktemp_s(tempFileNameBuffer, 12) == 0 else {
+            let error = Errno(rawValue: errno)
+            fatalError("error getting temp file name: \(error)")
+        }
+        return FilePath(platformString: tempFileNameBuffer)
         #endif
-    }
+    }()
     
     /// Removes all test data to avoid test contamination
     override func setUpWithError() throws {
         do {
-            #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
-            // Remove any existing test files
-            try FileManager.default.removeItem(at: testFileURL)
-            #else
-            let file = try FileDescriptor.open(
-                testFilePath, .readWrite,
-                options: [.create, .truncate],
-                permissions: .ownerReadWriteExecute)
-            try file.closeAfter {
-                guard try file.writeAll("{[]}".utf8) == 4 else {
-                    XCTFail("coudn't write empty file")
-                    return
+            // Get the path string for the current platform.
+            try testFilePath.withPlatformString { platformPath in
+                // Remove the test file.
+                #if os(Windows)
+                guard remove(platformPath) == 0 else {
+                    let error = Errno(rawValue: errno)
+                    throw error
                 }
+                #else
+                guard unlink(platformPath) == 0 else {
+                    let error = Errno(rawValue: errno)
+                    throw error
+                }
+                #endif
             }
-            #endif
-        } catch CocoaError.fileNoSuchFile {
-            // Do nothing
         } catch Errno.noSuchFileOrDirectory {
-            // Do nothing
+            // Do nothing, this is fine.
         }
     }
+    
+    #if os(Windows)
+    deinit {
+        testFilePath.withPlatformString { platformPath in
+            guard remove(platformPath) == 0 else {
+                print("the file at \(platformPath) couldn't be removed, please do so manually.")
+                return
+            }
+        }
+    }
+    #endif
     
     /// Asserts passing a list of unsorted events to the logbook sorts and stores them as expected.
     ///
