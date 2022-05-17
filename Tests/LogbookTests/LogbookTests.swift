@@ -58,16 +58,15 @@ final class LogbookTests: XCTestCase {
     /// Removes all test data to avoid test contamination
     override func setUpWithError() throws {
         do {
-            // Get the path string for the current platform.
-            try testFilePath.withPlatformString { platformPath in
+            try testFilePath.withCString { cPath in
                 // Remove the test file.
                 #if os(Windows)
-                guard remove(platformPath) == 0 else {
+                guard remove(cPath) == 0 else {
                     let error = Errno(rawValue: errno)
                     throw error
                 }
                 #else
-                guard unlink(platformPath) == 0 else {
+                guard unlink(cPath) == 0 else {
                     let error = Errno(rawValue: errno)
                     throw error
                 }
@@ -80,9 +79,9 @@ final class LogbookTests: XCTestCase {
     
     #if os(Windows)
     deinit {
-        testFilePath.withPlatformString { platformPath in
-            guard remove(platformPath) == 0 else {
-                print("the file at \(platformPath) couldn't be removed, please do so manually.")
+        testFilePath.withCString { cPath in
+            guard remove(cPath) == 0 else {
+                print("the file at \(cPath) couldn't be removed, please do so manually.")
                 return
             }
         }
