@@ -47,7 +47,7 @@ final class LogbookTests: XCTestCase {
         FilePath("/tmp/testLogbook.json")
         #elseif os(Windows)
         let tempFileNameBuffer = UnsafeMutablePointer<CInterop.PlatformChar>.allocate(capacity: 12)
-        guard _mktemp_s(tempFileNameBuffer, 12) == 0 else {
+        guard _wmktemp_s(tempFileNameBuffer, 12) == 0 else {
             let error = Errno(rawValue: errno)
             fatalError("error getting temp file name: \(error)")
         }
@@ -55,23 +55,27 @@ final class LogbookTests: XCTestCase {
         #endif
     }()
     
-    /// Removes all test data to avoid test contamination
-    override func setUpWithError() throws {
+    /// Removes the file at the specified path, or throws the appropriate `Errno`.
+    private func removeFile(at path: FilePath) throws {
         do {
-            try testFilePath.withCString { cPath in
-                // Remove the test file.
+            try path.withPlatformString { path in
                 #if os(Windows)
-                guard remove(cPath) == 0 else {
-                    let error = Errno(rawValue: errno)
-                    throw error
+                guard _wremove(path) == 0 else {
+                    throw Errno(rawValue: errno)
                 }
                 #else
-                guard unlink(cPath) == 0 else {
-                    let error = Errno(rawValue: errno)
-                    throw error
+                guard unlink(path) == 0 else {
+                    throw Errno(rawValue: errno)
                 }
                 #endif
             }
+        }
+    }
+    
+    /// Removes all test data to avoid test contamination
+    override func setUpWithError() throws {
+        do {
+            try removeFile(at: testFilePath)
         } catch Errno.noSuchFileOrDirectory {
             // Do nothing, this is fine.
         }
@@ -79,9 +83,9 @@ final class LogbookTests: XCTestCase {
     
     #if os(Windows)
     deinit {
-        testFilePath.withCString { cPath in
-            guard remove(cPath) == 0 else {
-                print("the file at \(cPath) couldn't be removed, please do so manually.")
+        testFilePath.withPlatformString { path in
+            guard _wremove(path) == 0 else {
+                print("the file at \(path) couldn't be removed, please do so manually.")
                 return
             }
         }
