@@ -58,4 +58,4 @@ jobs:
     - name: Run Tests
       run: > 
         xcodebuild test -scheme $SCHEME
-        -destnation "${{ matrix.destination }}"
+        -destination "${{ matrix.destination }}"
