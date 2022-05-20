@@ -50,12 +50,12 @@ jobs:
     - name: Build Sources
       run: > 
         xcodebuild build -scheme $SCHEME 
-        -destination ${{ matrix.destination }}
+        -destination "${{ matrix.destination }}"
     - name: Build Tests
       run: > 
         xcodebuild build-for-testing -scheme $SCHEME 
-        -destination ${{ matrix.destination }}
+        -destination "${{ matrix.destination }}"
     - name: Run Tests
       run: > 
         xcodebuild test -scheme $SCHEME
-        -destnation ${{ matrix.destination }}
+        -destnation "${{ matrix.destination }}"
