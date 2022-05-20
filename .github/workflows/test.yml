@@ -46,6 +46,7 @@ jobs:
     env:
       SCHEME: Logbook
     steps:
+    - uses: actions/checkout@v2
     - name: Build Sources
       run: > 
         xcodebuild build -scheme $SCHEME 
