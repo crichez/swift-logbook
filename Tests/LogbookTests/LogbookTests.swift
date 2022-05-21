@@ -168,9 +168,7 @@ final class LogbookTests: XCTestCase {
         XCTAssertNil(existingEvent)
         let retrievedEvent = await logbook.event(withID: event.id)
         XCTAssertEqual(event, retrievedEvent)
-        let dateRetrievedEvents = try await logbook.events(
-            onOrAfter: event.date, 
-            onOrBefore: event.date)
+        let dateRetrievedEvents = await logbook[event.date...event.date]
         XCTAssertEqual(dateRetrievedEvents.first, event)
     }
 
@@ -187,9 +185,9 @@ final class LogbookTests: XCTestCase {
         XCTAssertEqual(originalEvent, replacedEvent)
         let retrievedEvent = await logbook.event(withID: originalEvent.id)
         XCTAssertEqual(updatedEvent, retrievedEvent)
-        let correctDateRetrievedEvents = try await logbook.events(onOrAfter: newDate)
+        let correctDateRetrievedEvents = await logbook[newDate...]
         XCTAssertEqual(correctDateRetrievedEvents.first, updatedEvent)
-        let incorrectDateRetrievedEvents = try await logbook.events(before: newDate)
+        let incorrectDateRetrievedEvents = await logbook[..<newDate]
         XCTAssertTrue(incorrectDateRetrievedEvents.isEmpty)
     }
 
@@ -203,9 +201,7 @@ final class LogbookTests: XCTestCase {
         XCTAssertEqual(originalEvent, replacedEvent)
         let retrievedEvent = await logbook.event(withID: originalEvent.id)
         XCTAssertEqual(updatedEvent, retrievedEvent)
-        let dateRetrievedEvents = try await logbook.events(
-            onOrAfter: originalEvent.date,
-            onOrBefore: originalEvent.date)
+        let dateRetrievedEvents = await logbook[originalEvent.date...originalEvent.date]
         XCTAssertEqual(dateRetrievedEvents.first, updatedEvent)
     }
     
@@ -229,9 +225,7 @@ final class LogbookTests: XCTestCase {
         ]
         let logbook = Logbook(location: FilePath("/dev/null"), events: events)
         let searchInterval = DateInterval(start: Date(timeIntervalSince1970: 0), duration: 2)
-        let retrievedEvents = try await logbook.events(
-            onOrAfter: searchInterval.start,
-            onOrBefore: searchInterval.end)
+        let retrievedEvents = await logbook[searchInterval.start...searchInterval.end]
         XCTAssertEqual(Array(events[0...2]), retrievedEvents)
     }
 }

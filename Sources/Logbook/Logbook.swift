@@ -239,55 +239,81 @@ extension Logbook {
         eventsByID[id]
     }
     
-    /// Retrieves the events within the specified interval.
-    /// 
-    /// - Complexity: O(log(n)).
-    /// 
-    /// - Parameters:
-    ///   - start: the date from which to retrieve events
-    ///   - end: the date up and including which to retrieve events
-    /// 
-    /// - Returns: An `Array` of matching events.
-    public func events(
-        onOrAfter start: Date = .distantPast,
-        onOrBefore end: Date = .distantFuture
-    ) async throws -> [Event] {
-        var matchingEvents: [Event] = []
-        for try await event in self {
-            if event.date < start {
+    /// Returns all events in the provided range.
+    public subscript(range: Range<Date>) -> [Event] {
+        var matchingEvents = [Event]()
+        for (date, eventIDs) in eventIDsByDate {
+            if date < range.lowerBound {
                 continue
-            } else if event.date >= start && event.date <= end {
-                matchingEvents.append(event)
+            } else if range.contains(date) {
+                matchingEvents.append(contentsOf: eventIDs.compactMap { eventsByID[$0] })
             } else {
-                break 
+                break
             }
         }
         return matchingEvents
     }
 
-    /// Retrieves the events within the specified interval.
-    /// 
-    /// - Complexity: O(log(n)).
-    /// 
-    /// - Parameters:
-    ///   - start: the date after which to retrieve events
-    ///   - end: the date up to which to retrieve events
-    /// 
-    /// - Returns: An `Array` of matching events.
-    public func events(
-        after start: Date = .distantPast, 
-        before end: Date = .distantFuture
-    ) async throws -> [Event] {
-        var matchingEvents: [Event] = []
-        for try await event in self {
-            if event.date < start {
+    /// Returns all events in the provided range.
+    public subscript(range: ClosedRange<Date>) -> [Event] {
+        var matchingEvents = [Event]()
+        for (date, eventIDs) in eventIDsByDate {
+            if date < range.lowerBound {
                 continue
-            } else if event.date > start && event.date < end {
-                matchingEvents.append(event)
+            } else if range.contains(date) {
+                matchingEvents.append(contentsOf: eventIDs.compactMap { eventsByID[$0] })
             } else {
-                break 
+                break
             }
         }
         return matchingEvents
+    }
+
+    /// Returns all events in the provided range.
+    public subscript(range: PartialRangeFrom<Date>) -> [Event] {
+        var matchingEvents = [Event]()
+        for (date, eventIDs) in eventIDsByDate {
+            if date < range.lowerBound {
+                continue
+            } else {
+                matchingEvents.append(contentsOf: eventIDs.compactMap { eventsByID[$0] })
+            }
+        }
+        return matchingEvents
+    }
+
+    /// Returns all events in the provided range.
+    public subscript(range: PartialRangeUpTo<Date>) -> [Event] {
+        var matchingEvents = [Event]()
+        for (date, eventIDs) in eventIDsByDate {
+            if date < range.upperBound {
+                matchingEvents.append(contentsOf: eventIDs.compactMap { eventsByID[$0] })
+            } else {
+                break
+            }
+        }
+        return matchingEvents
+    }
+
+    /// Returns all events in the provided range.
+    public subscript(range: PartialRangeThrough<Date>) -> [Event] {
+        var matchingEvents = [Event]()
+        for (date, eventIDs) in eventIDsByDate {
+            if date <= range.upperBound {
+                matchingEvents.append(contentsOf: eventIDs.compactMap { eventsByID[$0] })
+            } else {
+                break
+            }
+        }
+        return matchingEvents
+    }
+
+    /// Returns all events in the provided range.
+    public subscript(range: UnboundedRange) -> [Event] {
+        eventIDsByDate.flatMap { (_, eventIDs) in
+            eventIDs.compactMap { eventID in 
+                eventsByID[eventID]
+            }
+        }
     }
 }
