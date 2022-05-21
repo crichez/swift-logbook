@@ -1,0 +1,61 @@
+name: Test
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test-standard-platforms:
+    strategy:
+      matrix:
+        platform:
+        - ubuntu-latest
+        - macos-latest
+        include:
+        - platform: ubuntu-latest
+          name: Ubuntu 20.04
+        - platform: macos-latest
+          name: macOS 11
+    name: Test on ${{ matrix.name }}
+    runs-on: ${{ matrix.platform }}
+    steps: 
+      - uses: actions/checkout@v2
+      - name: Build Sources
+        run: swift build
+      - name: Build Tests
+        run: swift build --build-tests
+      - name: Run Tests
+        run: swift test
+  
+  test-mobile-platforms:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        destination:
+        - "platform=iOS Simulator,name=iPhone 12,OS=15.2"
+        - "platform=tvOS Simulator,name=Apple TV 4K,OS=15.2"
+        - "platform=watchOS Simulator,name=Apple Watch Series 6 - 44mm,OS=8.3"
+        include:
+        - destination: "platform=iOS Simulator,name=iPhone 12,OS=15.2"
+          destinationName: iOS 15.2
+        - destination: "platform=tvOS Simulator,name=Apple TV 4K,OS=15.2"
+          destinationName: tvOS 15.2
+        - destination: "platform=watchOS Simulator,name=Apple Watch Series 6 - 44mm,OS=8.3"
+          destinationName: watchOS 8.3
+    name: Test on ${{ matrix.destinationName }}
+    env:
+      SCHEME: Logbook
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build Sources
+      run: > 
+        xcodebuild build -scheme $SCHEME 
+        -destination "${{ matrix.destination }}"
+    - name: Build Tests
+      run: > 
+        xcodebuild build-for-testing -scheme $SCHEME 
+        -destination "${{ matrix.destination }}"
+    - name: Run Tests
+      run: > 
+        xcodebuild test -scheme $SCHEME
+        -destination "${{ matrix.destination }}"

@@ -11,12 +11,20 @@ import XCTest
 import Foundation
 import SystemPackage
 
+#if os(Linux)
+import Glibc
+#elseif os(Windows)
+import ucrt
+#elseif os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
+import Darwin
+#endif
+
 /// A test suite for each method in the `Logbook` class.
-@available(macOS 11, tvOS 14, iOS 14, watchOS 8, *)
 final class LogbookTests: XCTestCase {
     
     // MARK: File Management
     
+    #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
     /// The URL to the test file.
     var testFileURL: URL {
         /// The test file location for this platform.
@@ -29,21 +37,60 @@ final class LogbookTests: XCTestCase {
         .appendingPathComponent("test")
         .appendingPathExtension("logbook")
     }
+    #endif
     
     /// The path to the test file.
-    var testFilePath: FilePath {
+    lazy var testFilePath: FilePath = {
+        #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
         FilePath(testFileURL.path)
+        #elseif os(Linux)
+        FilePath("/tmp/testLogbook.json")
+        #elseif os(Windows)
+        let tempFileNameBuffer = UnsafeMutablePointer<CInterop.PlatformChar>.allocate(capacity: 12)
+        guard _wmktemp_s(tempFileNameBuffer, 12) == 0 else {
+            let error = Errno(rawValue: errno)
+            fatalError("error getting temp file name: \(error)")
+        }
+        return FilePath(platformString: tempFileNameBuffer)
+        #endif
+    }()
+    
+    /// Removes the file at the specified path, or throws the appropriate `Errno`.
+    private func removeFile(at path: FilePath) throws {
+        do {
+            try path.withPlatformString { path in
+                #if os(Windows)
+                guard _wremove(path) == 0 else {
+                    throw Errno(rawValue: errno)
+                }
+                #else
+                guard unlink(path) == 0 else {
+                    throw Errno(rawValue: errno)
+                }
+                #endif
+            }
+        }
     }
     
     /// Removes all test data to avoid test contamination
     override func setUpWithError() throws {
         do {
-            // Remove any existing test files
-            try FileManager.default.removeItem(at: testFileURL)
-        } catch CocoaError.fileNoSuchFile {
-            // Do nothing
+            try removeFile(at: testFilePath)
+        } catch Errno.noSuchFileOrDirectory {
+            // Do nothing, this is fine.
         }
     }
+    
+    #if os(Windows)
+    deinit {
+        testFilePath.withPlatformString { path in
+            guard _wremove(path) == 0 else {
+                print("the file at \(path) couldn't be removed, please do so manually.")
+                return
+            }
+        }
+    }
+    #endif
     
     /// Asserts passing a list of unsorted events to the logbook sorts and stores them as expected.
     ///
@@ -92,7 +139,20 @@ final class LogbookTests: XCTestCase {
     func testInitializationWithFile() async throws {
         let testEvent = Event()
         let events = [testEvent]
-        try JSONEncoder().encode(events).write(to: testFileURL)
+        let encodedEvents = try JSONEncoder().encode(events)
+        try encodedEvents.withUnsafeBytes { bytesToWrite in
+            let file = try FileDescriptor.open(
+                testFilePath, .writeOnly,
+                options: [.create, .truncate],
+                permissions: .ownerReadWriteExecute)
+            try file.closeAfter {
+                let bytesWritten = try file.write(bytesToWrite)
+                guard bytesWritten == bytesToWrite.count else {
+                    XCTFail("didn't write the whole file!")
+                    return
+                }
+            }
+        }
         let logbook = try Logbook(location: testFilePath)
         let containsEvent = try await logbook.contains(testEvent)
         XCTAssertTrue(containsEvent)
@@ -103,7 +163,7 @@ final class LogbookTests: XCTestCase {
     /// Asserts events inserted using `insert(event:)` are reflected in the `events` dictionary.
     func testUpdateEvent() async throws {
         let event = Event()
-        let logbook = try Logbook(location: testFilePath)
+        let logbook = Logbook(location: testFilePath, events: [])
         let updatedEvent = await logbook.update(event: event)
         XCTAssertNil(updatedEvent)
         let retrievedEvent = await logbook.event(withID: event.id)
@@ -130,7 +190,9 @@ final class LogbookTests: XCTestCase {
         ]
         let logbook = Logbook(location: FilePath("/dev/null"), events: events)
         let searchInterval = DateInterval(start: Date(timeIntervalSince1970: 0), duration: 2)
-        let retrievedEvents = try await logbook.events(intersecting: searchInterval)
+        let retrievedEvents = try await logbook.events(
+            onOrAfter: searchInterval.start,
+            onOfBefore: searchInterval.end)
         XCTAssertEqual(Array(events[0...2]), retrievedEvents)
     }
 }

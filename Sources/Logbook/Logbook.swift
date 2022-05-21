@@ -31,6 +31,7 @@ public actor Logbook {
         let (eventsByID, eventIDsByDate) = Logbook.index(events: events)
         self.eventsByID = eventsByID
         self.eventIDsByDate = eventIDsByDate
+        print("initialized a logbook with \(eventsByID.count) events")
     }
 }
 
@@ -229,15 +230,18 @@ extension Logbook {
     }
     
     /// Returns the events within the specified interval.
-    public func events(intersecting interval: DateInterval) async throws -> [Event] {
+    public func events(
+        onOrAfter start: Date = Date(timeIntervalSinceReferenceDate: -.greatestFiniteMagnitude),
+        onOfBefore end: Date = Date(timeIntervalSinceReferenceDate: .greatestFiniteMagnitude)
+    ) async throws -> [Event] {
         var matchingEvents: [Event] = []
         for try await event in self {
-            if event.date < interval.start {
+            if event.date < start {
                 continue
-            } else if interval.contains(event.date) {
+            } else if event.date >= start && event.date <= end {
                 matchingEvents.append(event)
             } else {
-                break
+                break 
             }
         }
         return matchingEvents
