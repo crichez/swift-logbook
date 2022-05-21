@@ -108,17 +108,21 @@ extension Logbook {
 // MARK: Mutation
 
 extension Logbook {
-    /// Removes the provided event ID from the `eventIDsByDate` dictionary.
-    func clearIndex(eventID: UUID, lastKnownDate: Date) {
-        // Try removing this ID at the last known date.
-        if eventIDsByDate[lastKnownDate]?.remove(eventID) == nil {
-            // If that doesn't work, search the entire dictionary for the old date.
-            if let oldPair = eventIDsByDate.first(where: { date, ids in
-                ids.contains(eventID)
-            }) {
-                // Remove the ID from its old date.
-                eventIDsByDate[oldPair.key]!.remove(eventID)
-            }
+    /// Inserts the provided event into the logbook.
+    /// 
+    /// This method is equivalent to `update(event:)`, except nothing is done if an event with
+    /// that ID exists.
+    /// 
+    /// - Complexity: O(1).
+    /// 
+    /// - Parameter event: the event to insert
+    /// 
+    /// - Returns: True if the event was inserted, false if an event with that ID already exists.
+    @discardableResult func index(event: Event) -> Bool {
+        if eventIDsByDate[event.date] == nil {
+            return eventIDsByDate.updateValue([event.id], forKey: event.date) == nil
+        } else {
+            return eventIDsByDate[event.date]!.append(event.id).inserted
         }
     }
     
@@ -126,28 +130,28 @@ extension Logbook {
     ///
     /// If an event with that ID didn't exist before, it is inserted.
     ///
-    /// - Complexity: O(n)
+    /// - Complexity:
+    /// If the event's date did not change, O(1).
+    /// If the event's date changed, O(log(n)).
     ///
     /// - Parameter event: the new or mutated event to update the logbook for
     ///
     /// - Returns: If the event already existed, the old event. Otherwise `nil`.
     @discardableResult public func update(event: Event) -> Event? {
-        if let oldValue = eventsByID.updateValue(event, forKey: event.id) {
-            // This event ID existed before, so this in an update.
-            clearIndex(eventID: event.id, lastKnownDate: oldValue.date)
-            // Return the old event.
-            return oldValue
-        } else {
-            // This event ID didn't exist before, so this is an insertion.
-            // Add the new ID to the date keyed dictionary.
-            if eventIDsByDate[event.date] == nil {
-                eventIDsByDate[event.date] = [event.id]
-            } else {
-                eventIDsByDate[event.date]!.append(event.id)
-            }
-            // Return nil to signal this was an insertion.
+        // Update the value.
+        guard let oldValue = eventsByID.updateValue(event, forKey: event.id) else {
+            // If this is an insertion, just index the new event and return nil.
+            index(event: event)
             return nil
         }
+        // If this is an update, check whether the date changed..
+        if event.date != oldValue.date {
+            // If the dates are different, update the index.
+            eventIDsByDate[oldValue.date]?.remove(event.id)
+            index(event: event)
+        }
+        // Return the old event.
+        return oldValue
     }
     
     /// Removes the event with the provided ID from the logbook.
@@ -158,7 +162,7 @@ extension Logbook {
     @discardableResult public func remove(eventWithID eventID: UUID) -> Event? {
         if let removedEvent = eventsByID.removeValue(forKey: eventID) {
             // The event was removed, so we need to remove it from the date-keyed dictionary.
-            clearIndex(eventID: eventID, lastKnownDate: removedEvent.date)
+            eventIDsByDate[removedEvent.date]?.remove(eventID)
             // Return the removed event.
             return removedEvent
         } else {
@@ -224,21 +228,61 @@ extension Logbook: AsyncSequence {
 // MARK: Retrieval
 
 extension Logbook {
-    /// Returns the event with the specified ID, or `nil` if none exists.
+    /// Retrieves an event by its `id`.
+    /// 
+    /// - Complexity: O(1).
+    /// 
+    /// - Parameter id: the ID of the event to retrieve.
+    /// 
+    /// - Returns: The event with that ID, or `nil` if that ID isn't in the logbook.
     public func event(withID id: UUID) -> Event? {
         eventsByID[id]
     }
     
-    /// Returns the events within the specified interval.
+    /// Retrieves the events within the specified interval.
+    /// 
+    /// - Complexity: O(log(n)).
+    /// 
+    /// - Parameters:
+    ///   - start: the date from which to retrieve events
+    ///   - end: the date up and including which to retrieve events
+    /// 
+    /// - Returns: An `Array` of matching events.
     public func events(
-        onOrAfter start: Date = Date(timeIntervalSinceReferenceDate: -.greatestFiniteMagnitude),
-        onOfBefore end: Date = Date(timeIntervalSinceReferenceDate: .greatestFiniteMagnitude)
+        onOrAfter start: Date = .distantPast,
+        onOrBefore end: Date = .distantFuture
     ) async throws -> [Event] {
         var matchingEvents: [Event] = []
         for try await event in self {
             if event.date < start {
                 continue
             } else if event.date >= start && event.date <= end {
+                matchingEvents.append(event)
+            } else {
+                break 
+            }
+        }
+        return matchingEvents
+    }
+
+    /// Retrieves the events within the specified interval.
+    /// 
+    /// - Complexity: O(log(n)).
+    /// 
+    /// - Parameters:
+    ///   - start: the date after which to retrieve events
+    ///   - end: the date up to which to retrieve events
+    /// 
+    /// - Returns: An `Array` of matching events.
+    public func events(
+        after start: Date = .distantPast, 
+        before end: Date = .distantFuture
+    ) async throws -> [Event] {
+        var matchingEvents: [Event] = []
+        for try await event in self {
+            if event.date < start {
+                continue
+            } else if event.date > start && event.date < end {
                 matchingEvents.append(event)
             } else {
                 break 
