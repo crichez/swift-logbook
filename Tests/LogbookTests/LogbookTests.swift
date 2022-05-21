@@ -160,14 +160,49 @@ final class LogbookTests: XCTestCase {
     
     // MARK: Mutation & Ordering
     
-    /// Asserts events inserted using `insert(event:)` are reflected in the `events` dictionary.
-    func testUpdateEvent() async throws {
+    /// Asserts events inserted using `update(event:)` are retrievable by ID and by date.
+    func testInsertEvent() async throws {
         let event = Event()
         let logbook = Logbook(location: testFilePath, events: [])
-        let updatedEvent = await logbook.update(event: event)
-        XCTAssertNil(updatedEvent)
+        let existingEvent = await logbook.update(event: event)
+        XCTAssertNil(existingEvent)
         let retrievedEvent = await logbook.event(withID: event.id)
         XCTAssertEqual(event, retrievedEvent)
+        let dateRetrievedEvents = await logbook[event.date...event.date]
+        XCTAssertEqual(dateRetrievedEvents.first, event)
+    }
+
+    /// Asserts updating an event's date using `update(event:)` makes the event retrievable by ID
+    /// and by date.
+    func testUpdateEventWithNewDate() async throws {
+        let originalEvent = Event()
+        let logbook = Logbook(location: testFilePath, events: [])
+        let existingEvent = await logbook.update(event: originalEvent)
+        XCTAssertNil(existingEvent)
+        let newDate = Date()
+        let updatedEvent = Event(id: originalEvent.id, date: newDate)
+        let replacedEvent = await logbook.update(event: updatedEvent)
+        XCTAssertEqual(originalEvent, replacedEvent)
+        let retrievedEvent = await logbook.event(withID: originalEvent.id)
+        XCTAssertEqual(updatedEvent, retrievedEvent)
+        let correctDateRetrievedEvents = await logbook[newDate...]
+        XCTAssertEqual(correctDateRetrievedEvents.first, updatedEvent)
+        let incorrectDateRetrievedEvents = await logbook[..<newDate]
+        XCTAssertTrue(incorrectDateRetrievedEvents.isEmpty)
+    }
+
+    func testUpdateEventWithOldDate() async throws {
+        let originalEvent = Event()
+        let logbook = Logbook(location: testFilePath, events: [])
+        let existingEvent = await logbook.update(event: originalEvent)
+        XCTAssertNil(existingEvent)
+        let updatedEvent = Event(id: originalEvent.id, date: originalEvent.date, comments: "test")
+        let replacedEvent = await logbook.update(event: updatedEvent)
+        XCTAssertEqual(originalEvent, replacedEvent)
+        let retrievedEvent = await logbook.event(withID: originalEvent.id)
+        XCTAssertEqual(updatedEvent, retrievedEvent)
+        let dateRetrievedEvents = await logbook[originalEvent.date...originalEvent.date]
+        XCTAssertEqual(dateRetrievedEvents.first, updatedEvent)
     }
     
     /// Asserts `remove(eventWithID eventID:)` removes the specified event as expected.
@@ -190,9 +225,7 @@ final class LogbookTests: XCTestCase {
         ]
         let logbook = Logbook(location: FilePath("/dev/null"), events: events)
         let searchInterval = DateInterval(start: Date(timeIntervalSince1970: 0), duration: 2)
-        let retrievedEvents = try await logbook.events(
-            onOrAfter: searchInterval.start,
-            onOfBefore: searchInterval.end)
+        let retrievedEvents = await logbook[searchInterval.start...searchInterval.end]
         XCTAssertEqual(Array(events[0...2]), retrievedEvents)
     }
 }
