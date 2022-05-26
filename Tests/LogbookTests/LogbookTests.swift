@@ -217,15 +217,31 @@ final class LogbookTests: XCTestCase {
     
     /// Asserts requesting events within an interval returns the expected events.
     func testDateSearch() async throws {
+        let date0 = Date(timeIntervalSinceReferenceDate: 0)
+        let date1 = Date(timeIntervalSinceReferenceDate: 1)
+        let date2 = Date(timeIntervalSinceReferenceDate: 2)
+        let date3 = Date(timeIntervalSinceReferenceDate: 3)
         let events = [
-            Event(date: Date(timeIntervalSince1970: 0)),
-            Event(date: Date(timeIntervalSince1970: 1)),
-            Event(date: Date(timeIntervalSince1970: 2)),
-            Event(date: Date(timeIntervalSince1970: 3)),
+            Event(date: date0),
+            Event(date: date1),
+            Event(date: date2),
+            Event(date: date3),
         ]
         let logbook = Logbook(location: FilePath("/dev/null"), events: events)
-        let searchInterval = DateInterval(start: Date(timeIntervalSince1970: 0), duration: 2)
-        let retrievedEvents = await logbook[searchInterval.start...searchInterval.end]
-        XCTAssertEqual(Array(events[0...2]), retrievedEvents)
+        // Range
+        let rangeEvents = await logbook[date0..<date3]
+        XCTAssertEqual(Array(events[0..<3]), rangeEvents)
+        // ClosedRange
+        let closedRangeEvents = await logbook[date1...date3]
+        XCTAssertEqual(Array(events[1...3]), closedRangeEvents)
+        // PartialRangeUpTo
+        let partialRangeUpToEvents = await logbook[..<date2]
+        XCTAssertEqual(Array(events[..<2]), partialRangeUpToEvents)
+        // PartialRangeThrough
+        let partialRangeThroughEvents = await logbook[...date2]
+        XCTAssertEqual(Array(events[...2]), partialRangeThroughEvents)
+        // UnboundRange
+        let unboundRangeEvents = await logbook[...]
+        XCTAssertEqual(events, unboundRangeEvents)
     }
 }
