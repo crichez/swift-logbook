@@ -316,4 +316,17 @@ extension Logbook {
             }
         }
     }
+
+    // MARK: Experience Search
+
+    /// Returns all events with the specified experience.
+    /// 
+    /// - Parameter experience: the name of the experience to search for
+    /// 
+    /// - Returns: All events with the specified experience listed.
+    public func events(withExperience experience: String) -> [Event] {
+        eventsByID.values.filter { event in 
+            event.experience[experience] != nil
+        }
+    }
 }

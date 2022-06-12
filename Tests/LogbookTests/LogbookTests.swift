@@ -244,4 +244,22 @@ final class LogbookTests: XCTestCase {
         let unboundRangeEvents = await logbook[...]
         XCTAssertEqual(events, unboundRangeEvents)
     }
+
+    /// Asserts requesting all events with the specified experience key yields expected events.
+    func testExperienceSearch() async throws {
+        let events = [
+            Event(experience: ["PIC": .time(3600)]),
+            Event(experience: ["PIC": .time(4800), "SIC": .time(4800)]),
+            Event(experience: ["Landings": .count(1)]),
+        ]
+        let logbook = Logbook(location: testFilePath, events: events)
+        let eventsWithPIC = await logbook.events(withExperience: "PIC")
+        XCTAssertEqual(eventsWithPIC, Array(events[0...1]))
+        let eventsWithSIC = await logbook.events(withExperience: "SIC")
+        XCTAssertEqual(eventsWithSIC, [events[1]])
+        let eventsWithLandings = await logbook.events(withExperience: "Landings")
+        XCTAssertEqual(eventsWithLandings, [events[2]])
+        let eventsWithUnnamedExperience = await logbook.events(withExperience: "")
+        XCTAssertTrue(eventsWithUnnamedExperience.isEmpty)
+    }
 }
