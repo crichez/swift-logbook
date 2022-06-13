@@ -240,8 +240,44 @@ final class LogbookTests: XCTestCase {
         // PartialRangeThrough
         let partialRangeThroughEvents = await logbook[...date2]
         XCTAssertEqual(Array(events[...2]), partialRangeThroughEvents)
-        // UnboundRange
-        let unboundRangeEvents = await logbook[...]
-        XCTAssertEqual(events, unboundRangeEvents)
+    }
+
+    /// Asserts requesting all events with the specified experience key yields expected events.
+    func testExperienceSearch() async {
+        let date = Date()
+        let events = [
+            Event(date: date, experience: ["PIC": .time(3600)]),
+            Event(date: date, experience: ["PIC": .time(4800), "SIC": .time(4800)]),
+            Event(date: date, experience: ["Landings": .count(1)]),
+        ]
+        let logbook = Logbook(location: testFilePath, events: events)
+        let eventsWithPIC = await logbook.events(withExperience: "PIC")
+        XCTAssertEqual(Set(eventsWithPIC), Set(events[0...1]))
+        let eventsWithSIC = await logbook.events(withExperience: "SIC")
+        XCTAssertEqual(Set(eventsWithSIC), Set([events[1]]))
+        let eventsWithLandings = await logbook.events(withExperience: "Landings")
+        XCTAssertEqual(Set(eventsWithLandings), ([events[2]]))
+        let eventsWithUnnamedExperience = await logbook.events(withExperience: "")
+        XCTAssertTrue(eventsWithUnnamedExperience.isEmpty)
+    }
+
+    /// Asserts requesting events with a specific experience key within a provided
+    /// date range returns the expected events.
+    func testDateAndExperienceSearch() async {
+        let refDate = Date(timeIntervalSinceReferenceDate: 0)
+        let events = [
+            Event(date: refDate, experience: ["Total": .time(4000)]),
+            Event(date: refDate + 1, experience: ["Total": .time(1000)]),
+            Event(date: refDate + 1, experience: [:]),
+        ]
+        let logbook = Logbook(location: testFilePath, events: events)
+        let oldEventsWithPIC = await logbook.events(
+            withExperience: "Total", 
+            within: refDate...refDate)
+        XCTAssertEqual(Set(oldEventsWithPIC), [events[0]])
+        let allEventsWithPIC = await logbook.events(
+            withExperience: "Total", 
+            within: refDate...)
+        XCTAssertEqual(Set(allEventsWithPIC), Set(events[0...1]))
     }
 }
