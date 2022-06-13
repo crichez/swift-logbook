@@ -238,88 +238,33 @@ extension Logbook {
     public func event(withID id: UUID) -> Event? {
         eventsByID[id]
     }
+
+    // MARK: Date Search
     
     /// Returns all events in the provided range.
-    public subscript(range: Range<Date>) -> [Event] {
+    public subscript<R: RangeExpression>(range: R) -> [Event] where R.Bound == Date {
         var matchingEvents = [Event]()
+        var inOrBeyondRange = false
         for (date, eventIDs) in eventIDsByDate {
-            if date < range.lowerBound {
+            if !inOrBeyondRange && !range.contains(date) {
                 continue
             } else if range.contains(date) {
+                if inOrBeyondRange == false {
+                    inOrBeyondRange.toggle()
+                }
                 matchingEvents.append(contentsOf: eventIDs.compactMap { eventsByID[$0] })
             } else {
                 break
             }
         }
         return matchingEvents
-    }
-
-    /// Returns all events in the provided range.
-    public subscript(range: ClosedRange<Date>) -> [Event] {
-        var matchingEvents = [Event]()
-        for (date, eventIDs) in eventIDsByDate {
-            if date < range.lowerBound {
-                continue
-            } else if range.contains(date) {
-                matchingEvents.append(contentsOf: eventIDs.compactMap { eventsByID[$0] })
-            } else {
-                break
-            }
-        }
-        return matchingEvents
-    }
-
-    /// Returns all events in the provided range.
-    public subscript(range: PartialRangeFrom<Date>) -> [Event] {
-        var matchingEvents = [Event]()
-        for (date, eventIDs) in eventIDsByDate {
-            if date < range.lowerBound {
-                continue
-            } else {
-                matchingEvents.append(contentsOf: eventIDs.compactMap { eventsByID[$0] })
-            }
-        }
-        return matchingEvents
-    }
-
-    /// Returns all events in the provided range.
-    public subscript(range: PartialRangeUpTo<Date>) -> [Event] {
-        var matchingEvents = [Event]()
-        for (date, eventIDs) in eventIDsByDate {
-            if date < range.upperBound {
-                matchingEvents.append(contentsOf: eventIDs.compactMap { eventsByID[$0] })
-            } else {
-                break
-            }
-        }
-        return matchingEvents
-    }
-
-    /// Returns all events in the provided range.
-    public subscript(range: PartialRangeThrough<Date>) -> [Event] {
-        var matchingEvents = [Event]()
-        for (date, eventIDs) in eventIDsByDate {
-            if date <= range.upperBound {
-                matchingEvents.append(contentsOf: eventIDs.compactMap { eventsByID[$0] })
-            } else {
-                break
-            }
-        }
-        return matchingEvents
-    }
-
-    /// Returns all events in the provided range.
-    public subscript(range: UnboundedRange) -> [Event] {
-        eventIDsByDate.flatMap { (_, eventIDs) in
-            eventIDs.compactMap { eventID in 
-                eventsByID[eventID]
-            }
-        }
     }
 
     // MARK: Experience Search
 
     /// Returns all events with the specified experience.
+    /// 
+    /// - Complexity: O(n).
     /// 
     /// - Parameter experience: the name of the experience to search for
     /// 
@@ -328,5 +273,43 @@ extension Logbook {
         eventsByID.values.filter { event in 
             event.experience[experience] != nil
         }
+    }
+
+    /// Returns all events with the specified experience within the provided date range.
+    /// 
+    /// - Complexity: O(log(n))
+    /// 
+    /// - Parameter experience: the name of the experience to search for
+    /// - Parameter dateRange: the date range within which to search
+    /// 
+    /// - Returns: All events with the specified experience within the provided date range.
+    public func events<R: RangeExpression>(
+        withExperience experience: String, 
+        within dates: R
+    ) -> [Event] where R.Bound == Date {
+        var matchingEvents: [Event] = []
+        var inOrBeyondRange = false
+        for (date, eventIDs) in eventIDsByDate {
+            if !inOrBeyondRange && !dates.contains(date) {
+                continue
+            } else if dates.contains(date) {
+                if inOrBeyondRange == false {
+                    inOrBeyondRange.toggle()
+                }
+                for eventID in eventIDs {
+                    guard let event = eventsByID[eventID] else {
+                        continue
+                    }
+                    if event.experience[experience] == nil {
+                        continue
+                    } else {
+                        matchingEvents.append(event)
+                    }
+                }
+            } else {
+                break
+            }
+        }
+        return matchingEvents
     }
 }
