@@ -244,10 +244,11 @@ final class LogbookTests: XCTestCase {
 
     /// Asserts requesting all events with the specified experience key yields expected events.
     func testExperienceSearch() async {
+        let date = Date()
         let events = [
-            Event(experience: ["PIC": .time(3600)]),
-            Event(experience: ["PIC": .time(4800), "SIC": .time(4800)]),
-            Event(experience: ["Landings": .count(1)]),
+            Event(date: date, experience: ["PIC": .time(3600)]),
+            Event(date: date, experience: ["PIC": .time(4800), "SIC": .time(4800)]),
+            Event(date: date, experience: ["Landings": .count(1)]),
         ]
         let logbook = Logbook(location: testFilePath, events: events)
         let eventsWithPIC = await logbook.events(withExperience: "PIC")
