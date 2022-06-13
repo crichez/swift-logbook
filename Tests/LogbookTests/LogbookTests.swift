@@ -252,11 +252,11 @@ final class LogbookTests: XCTestCase {
         ]
         let logbook = Logbook(location: testFilePath, events: events)
         let eventsWithPIC = await logbook.events(withExperience: "PIC")
-        XCTAssertEqual(eventsWithPIC, Array(events[0...1]))
+        XCTAssertEqual(Set(eventsWithPIC), Set(events[0...1]))
         let eventsWithSIC = await logbook.events(withExperience: "SIC")
-        XCTAssertEqual(eventsWithSIC, [events[1]])
+        XCTAssertEqual(Set(eventsWithSIC), Set([events[1]]))
         let eventsWithLandings = await logbook.events(withExperience: "Landings")
-        XCTAssertEqual(eventsWithLandings, [events[2]])
+        XCTAssertEqual(Set(eventsWithLandings), ([events[2]]))
         let eventsWithUnnamedExperience = await logbook.events(withExperience: "")
         XCTAssertTrue(eventsWithUnnamedExperience.isEmpty)
     }
@@ -274,10 +274,10 @@ final class LogbookTests: XCTestCase {
         let oldEventsWithPIC = await logbook.events(
             withExperience: "Total", 
             within: refDate...refDate)
-        XCTAssertEqual(oldEventsWithPIC, [events[0]])
+        XCTAssertEqual(Set(oldEventsWithPIC), [events[0]])
         let allEventsWithPIC = await logbook.events(
             withExperience: "Total", 
             within: refDate...)
-        XCTAssertEqual(allEventsWithPIC, Array(events[0...1]))
+        XCTAssertEqual(Set(allEventsWithPIC), Set(events[0...1]))
     }
 }
